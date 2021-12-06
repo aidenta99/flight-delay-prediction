@@ -1,0 +1,7 @@
+torch==1.9.0
+torch-scatter -f https://pytorch-geometric.com/whl/torch-1.9.0+${CUDA}.html
+torch-sparse -f https://pytorch-geometric.com/whl/torch-1.9.0+${CUDA}.html
+torch-cluster -f https://pytorch-geometric.com/whl/torch-1.9.0+${CUDA}.html
+torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.9.0+${CUDA}.html
+torch-geometric
+torch-geometric-temporal
