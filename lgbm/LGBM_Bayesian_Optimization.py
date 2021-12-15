@@ -58,49 +58,51 @@ X_test = df_test
 
 # Define function for bayesian optimization LGBM
 
-def bayes_parameter_opt_lgbm(X, y, init_round=15, opt_round=25, n_folds=3, random_seed=422442, output_process=False):
+def bayes_parameter_opt_lgbm(X, y, init_round=15, opt_round=25, n_folds=10, random_seed=6, output_process=False):
     # prepare data
     train_data = lgbm.Dataset(data=X, label=y, free_raw_data=False)
     # parameters
-    def lgbm_eval(learning_rate,num_leaves, feature_fraction, bagging_fraction, max_depth, max_bin, min_data_in_leaf, min_sum_hessian_in_leaf, subsample):
-        params = {'application':'regression_l2', 'metric':'auc'}
+    def lgbm_eval(learning_rate, num_leaves, num_iterations, feature_fraction, bagging_fraction, max_depth, max_bin, min_data_in_leaf, min_sum_hessian_in_leaf):
+        params = {'application':'regression_l2', 'metric':'mse', 'early_stopping_round': 3, 'verbosity': -1}
         params['learning_rate'] = max(min(learning_rate, 1), 0)
         params['num_leaves'] = int(round(num_leaves))
+        params['num_iterations'] = int(round(num_iterations))
         params['feature_fraction'] = max(min(feature_fraction, 1), 0)
         params['bagging_fraction'] = max(min(bagging_fraction, 1), 0)
         params['max_depth'] = int(round(max_depth))
         params['max_bin'] = int(round(max_depth))
         params['min_data_in_leaf'] = int(round(min_data_in_leaf))
         params['min_sum_hessian_in_leaf'] = min_sum_hessian_in_leaf
-        params['subsample'] = max(min(subsample, 1), 0)
         
-        cv_result = lgbm.cv(params, train_data, nfold=n_folds, seed=random_seed, stratified=True, verbose_eval=200, metrics=['auc'])
-        return max(cv_result['auc-mean'])
+        cv_result = lgbm.cv(params, train_data, nfold=n_folds, seed=random_seed, stratified=False, metrics=['l2'])
+        return max(cv_result['l2-mean'])
      
-    lgbmBO = BayesianOptimization(lgbm_eval, {'learning_rate': (0.001, 1.0),
-                                            'num_leaves': (2, 2**9),
-                                            'feature_fraction': (0.1, 1),
-                                            'bagging_fraction': (0.1, 1),
-                                            'max_depth': (2, 10),
-                                            'max_bin':(10,255),
-                                            'min_data_in_leaf': (10, 200),
-                                            'min_sum_hessian_in_leaf':(0,100),
-                                            'subsample': (0.01, 1.0)}, random_state=200)
-
+    lgbmBO = BayesianOptimization(lgbm_eval, {
+        'learning_rate': (0.01, 1.0),
+        'num_leaves': (4, 800),
+        'num_iterations': (10, 400),
+        'feature_fraction': (0.1, 1.0),
+        'bagging_fraction': (0.1, 1.0),
+        'max_depth': (2, 10),
+        'max_bin':(10,200),
+        'min_data_in_leaf': (10, 400),
+        'min_sum_hessian_in_leaf':(0,400),
+    }, random_state=4242)
+    
     #n_iter: How many steps of bayesian optimization you want to perform. The more steps the more likely to find a good maximum you are.
     #init_points: How many steps of random exploration you want to perform. Random exploration can help by diversifying the exploration space.
     
     lgbmBO.maximize(init_points=init_round, n_iter=opt_round)
     
-    model_auc=[]
-    for model in range(len( lgbmBO.res)):
-        model_auc.append(lgbmBO.res[model]['target'])
+    model_mse=[]
+    for model in range(len(lgbmBO.res)):
+        model_mse.append(lgbmBO.res[model]['target'])
     
     # return best parameters
-    return lgbmBO.res[pd.Series(model_auc).idxmax()]['target'],lgbmBO.res[pd.Series(model_auc).idxmax()]['params']
+    return lgbmBO.res[pd.Series(model_mse).idxmax()]['target'],lgbmBO.res[pd.Series(model_mse).idxmax()]['params']
 
 # Find and save optimal parameters
-opt_params = bayes_parameter_opt_lgbm(X_train, y_train, init_round=5, opt_round=10, n_folds=3, random_seed=422442)
+opt_params = bayes_parameter_opt_lgbm(X_train, y_train, init_round=100, opt_round=100, n_folds=10, random_seed=4224)
 print(opt_params)
 
 with open('opt_params.pickle', 'wb') as f:
