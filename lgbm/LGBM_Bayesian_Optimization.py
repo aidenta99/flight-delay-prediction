@@ -58,7 +58,7 @@ X_test = df_test
 
 # Define function for bayesian optimization LGBM
 
-def bayes_parameter_opt_lgbm(X, y, init_round=15, opt_round=25, n_folds=10, random_seed=6, output_process=False):
+def bayes_parameter_opt_lgbm(X, y, init_round, opt_round, n_folds, random_seed, output_process=False):
     # prepare data
     train_data = lgbm.Dataset(data=X, label=y, free_raw_data=False)
     # parameters
@@ -102,7 +102,7 @@ def bayes_parameter_opt_lgbm(X, y, init_round=15, opt_round=25, n_folds=10, rand
     return lgbmBO.res[pd.Series(model_mse).idxmax()]['target'],lgbmBO.res[pd.Series(model_mse).idxmax()]['params']
 
 # Find and save optimal parameters
-opt_params = bayes_parameter_opt_lgbm(X_train, y_train, init_round=100, opt_round=100, n_folds=10, random_seed=4224)
+opt_params = bayes_parameter_opt_lgbm(X_train, y_train, init_round=100, opt_round=100, n_folds=3, random_seed=4224)
 print(opt_params)
 
 with open('opt_params.pickle', 'wb') as f:
