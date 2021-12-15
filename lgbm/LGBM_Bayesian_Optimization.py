@@ -59,8 +59,6 @@ X_test = df_test
 # Define function for bayesian optimization LGBM
 
 def bayes_parameter_opt_lgbm(X, y, init_round, opt_round, n_folds, random_seed, output_process=False):
-    # prepare data
-    train_data = lgbm.Dataset(data=X, label=y, free_raw_data=False)
     # parameters
     def lgbm_eval(learning_rate, num_leaves, num_iterations, feature_fraction, bagging_fraction, max_depth, max_bin, min_data_in_leaf, min_sum_hessian_in_leaf):
         params = {'application':'regression_l2', 'metric':'mse', 'early_stopping_round': 3, 'verbosity': -1}
@@ -74,6 +72,8 @@ def bayes_parameter_opt_lgbm(X, y, init_round, opt_round, n_folds, random_seed, 
         params['min_data_in_leaf'] = int(round(min_data_in_leaf))
         params['min_sum_hessian_in_leaf'] = min_sum_hessian_in_leaf
         
+        # Create training data to allow max_bin to change
+        train_data = lgbm.Dataset(data=X, label=y, free_raw_data=False)
         cv_result = lgbm.cv(params, train_data, nfold=n_folds, seed=random_seed, stratified=False, metrics=['l2'])
         return max(cv_result['l2-mean'])
      
