@@ -75,12 +75,12 @@ def bayes_parameter_opt_lgbm(X, y, init_round, opt_round, n_folds, random_seed, 
         # Create training data to allow max_bin to change
         train_data = lgbm.Dataset(data=X, label=y, free_raw_data=False)
         cv_result = lgbm.cv(params, train_data, nfold=n_folds, seed=random_seed, stratified=False, metrics=['l2'])
-        return max(cv_result['l2-mean'])
+        return -max(cv_result['l2-mean'])
      
     lgbmBO = BayesianOptimization(lgbm_eval, {
         'learning_rate': (0.01, 1.0),
         'num_leaves': (4, 800),
-        'num_iterations': (10, 400),
+        'num_iterations': (10, 300),
         'feature_fraction': (0.1, 1.0),
         'bagging_fraction': (0.1, 1.0),
         'max_depth': (2, 10),
@@ -102,8 +102,8 @@ def bayes_parameter_opt_lgbm(X, y, init_round, opt_round, n_folds, random_seed, 
     return lgbmBO.res[pd.Series(model_mse).idxmax()]['target'],lgbmBO.res[pd.Series(model_mse).idxmax()]['params']
 
 # Find and save optimal parameters
-opt_params = bayes_parameter_opt_lgbm(X_train, y_train, init_round=100, opt_round=100, n_folds=3, random_seed=4224)
+opt_params = bayes_parameter_opt_lgbm(X_train, y_train, init_round=50, opt_round=100, n_folds=3, random_seed=4224)
 print(opt_params)
 
-with open('opt_params.pickle', 'wb') as f:
+with open('opt_params_fixed_ds_run.pickle', 'wb') as f:
     pickle.dump(opt_params, f)
