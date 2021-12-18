@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# In[3]:
+
+
 #basic tools 
 import os
 import numpy as np
@@ -14,7 +17,14 @@ from bayes_opt import BayesianOptimization
 import lightgbm as lgbm
 from sklearn.model_selection import train_test_split
 
+
+# In[4]:
+
+
 def reduce_mem_usage(df, verbose=True):
+    """
+    function to reduce pandas dataframe memory usage
+    """
     numerics = ['int8','int16', 'int32', 'int64', 'float16', 'float32', 'float64']
     start_mem = df.memory_usage().sum() / 1024**2    
     for col in df.columns:
@@ -42,56 +52,79 @@ def reduce_mem_usage(df, verbose=True):
     if verbose: print('Mem. usage decreased to {:5.2f} Mb ({:.1f}% reduction)'.format(end_mem, 100 * (start_mem - end_mem) / start_mem))
     return df
 
-# Load dataset
+
+# In[5]:
+
+
+# Load train, validation, and test set
 df_train_validation = pd.read_csv("final_train_val.csv", low_memory=False, index_col="id")
 df_test = pd.read_csv("final_test.csv", low_memory=False, index_col="id")
 
+
+# In[6]:
+
+
+# Reduce memory of the loaded dataframes
 df_train_validation = reduce_mem_usage(df_train_validation) 
 df_test = reduce_mem_usage(df_test) 
 
-# Split data for lgbm
+
+# In[8]:
+
+
+# Split for LGBM
 df_train, df_validation = train_test_split(df_train_validation, test_size=0.20, random_state = 42)
 X_train, y_train = df_train.drop("ARRIVAL_DELAY", axis=1), df_train["ARRIVAL_DELAY"]
 X_val, y_val = df_validation.drop("ARRIVAL_DELAY", axis=1), df_validation["ARRIVAL_DELAY"]
 X_test = df_test
 
 
-# Define function for bayesian optimization LGBM
+# In[41]:
 
-def bayes_parameter_opt_lgbm(X, y, init_round, opt_round, n_folds, random_seed, output_process=False):
+
+def bayes_parameter_opt_lgbm(X, y, init_round=15, opt_round=25, n_folds=10, random_seed=6, output_process=False):
+    """
+    Sets up a Bayesian optimization schedule using BayesianOptimization and returns optimial parameters found
+    :params:
+    init_round: Number of initial random evaluations to get an idea of the problem space
+    opt_round: Number of Bayesian optimization steps
+    n_folds: Number of folds for the LGBM model cross-validation during optimization
+    random_seed: Random state for reproducibility
+    """
+    # prepare data
+    train_data = lgbm.Dataset(data=X, label=y, free_raw_data=False)
     # parameters
-    def lgbm_eval(learning_rate, num_leaves, num_iterations, feature_fraction, bagging_fraction, max_depth, max_bin, min_data_in_leaf, min_sum_hessian_in_leaf):
+    def lgbm_eval(learning_rate, num_iterations, feature_fraction, bagging_fraction, max_depth, max_bin, min_data_in_leaf, min_sum_hessian_in_leaf):
+        """
+        Fits an LGBM model and returns the L2 (MSE) error resulting from the cross-validation
+        :params: are the hyper-parameters to be optimized
+        """
         params = {'application':'regression_l2', 'metric':'mse', 'early_stopping_round': 3, 'verbosity': -1}
         params['learning_rate'] = max(min(learning_rate, 1), 0)
-        params['num_leaves'] = int(round(num_leaves))
+        params['max_depth'] = int(round(max_depth))
+        params['num_leaves'] = int(round(2**max_depth))
         params['num_iterations'] = int(round(num_iterations))
         params['feature_fraction'] = max(min(feature_fraction, 1), 0)
         params['bagging_fraction'] = max(min(bagging_fraction, 1), 0)
-        params['max_depth'] = int(round(max_depth))
         params['max_bin'] = int(round(max_depth))
         params['min_data_in_leaf'] = int(round(min_data_in_leaf))
         params['min_sum_hessian_in_leaf'] = min_sum_hessian_in_leaf
         
-        # Create training data to allow max_bin to change
-        train_data = lgbm.Dataset(data=X, label=y, free_raw_data=False)
         cv_result = lgbm.cv(params, train_data, nfold=n_folds, seed=random_seed, stratified=False, metrics=['l2'])
+        # Return negative MSE to be maximized
         return -max(cv_result['l2-mean'])
      
     lgbmBO = BayesianOptimization(lgbm_eval, {
-        'learning_rate': (0.01, 1.0),
-        'num_leaves': (4, 800),
-        'num_iterations': (10, 300),
-        'feature_fraction': (0.1, 1.0),
-        'bagging_fraction': (0.1, 1.0),
-        'max_depth': (2, 10),
+        'learning_rate': (0.1, 0.5),
+        'num_iterations': (10, 400),
+        'feature_fraction': (0.01, 1.0),
+        'bagging_fraction': (0.01, 1.0),
+        'max_depth': (8, 15),
         'max_bin':(10,200),
         'min_data_in_leaf': (10, 400),
         'min_sum_hessian_in_leaf':(0,400),
-    }, random_state=4242)
-    
-    #n_iter: How many steps of bayesian optimization you want to perform. The more steps the more likely to find a good maximum you are.
-    #init_points: How many steps of random exploration you want to perform. Random exploration can help by diversifying the exploration space.
-    
+    }, random_state=random_seed)
+
     lgbmBO.maximize(init_points=init_round, n_iter=opt_round)
     
     model_mse=[]
@@ -101,9 +134,25 @@ def bayes_parameter_opt_lgbm(X, y, init_round, opt_round, n_folds, random_seed, 
     # return best parameters
     return lgbmBO.res[pd.Series(model_mse).idxmax()]['target'],lgbmBO.res[pd.Series(model_mse).idxmax()]['params']
 
-# Find and save optimal parameters
-opt_params = bayes_parameter_opt_lgbm(X_train, y_train, init_round=50, opt_round=100, n_folds=3, random_seed=4224)
+
+# In[42]:
+
+
+# Exectute the Bayesian optimization and print the best parameters found
+opt_params = bayes_parameter_opt_lgbm(X_train, y_train, init_round=50, opt_round=50, n_folds=10, random_seed=6)
 print(opt_params)
 
-with open('opt_params_fixed_ds_run.pickle', 'wb') as f:
+
+# In[10]:
+
+
+opt_params
+
+
+# In[25]:
+
+
+# Save the optimial parameters dict as a pickle
+with open('opt_params.pickle', 'wb') as f:
     pickle.dump(opt_params, f)
+
