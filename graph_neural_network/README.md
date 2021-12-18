@@ -1,1 +1,2 @@
 # Graph Neural Networks for Flight Delay Prediction
+In this directory of our flight delay prediciton Kaggle challenge repo we present a two layer SAGEConv network to predict edge labels, i.e. flight delays in this case. Unfortunately, the network collapses quite rapidly and no real prediction is possible. Possible avenues for further research is to use Pytorch Geometric Temporal instead of DGL and build a temporal dataset instead of having a one-time-snapshot directed multigraph with the time of the flight encoded as a feature.
