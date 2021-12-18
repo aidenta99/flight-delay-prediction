@@ -5,8 +5,8 @@ from sklearn.model_selection import train_test_split
 def split_data():
     
     #CHANGE INPUT LOCATION
-    airports = pd.read_csv('../input/flight-delays-prediction-challeng2021/airports.csv')
-    flights_train = pd.read_csv('../input/flight-delays-prediction-challeng2021/flights_train.csv')
+    airports = pd.read_csv('input/airports.csv')
+    flights_train = pd.read_csv('input/flights_train.csv')
     
     airports_origin = airports[['IATA_CODE','LATITUDE','LONGITUDE']].rename(columns = {'IATA_CODE' : 'ORIGIN_AIRPORT'})
     airports_arrive = airports[['IATA_CODE','LATITUDE','LONGITUDE']].rename(columns = {'IATA_CODE' : 'DESTINATION_AIRPORT'})
@@ -21,3 +21,5 @@ def split_data():
     train.to_csv('flights_training.csv')
     test.to_csv('flights_testing.csv')
     val.to_csv('flights_validation.csv')
+
+split_data()
