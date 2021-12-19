@@ -2,7 +2,7 @@
 In this repo we present our collected works towards the first place of the 2021 AML Kaggle Competition.
 
 # A short summary
-- (CatBoost)[https://catboost.ai/] for the win; always
+- [CatBoost](https://catboost.ai/) for the win; always
 - Work on EDA and data sanitation first!
 - The data makes the difference - use external one to enrich it
 - Don't do Graph Neural Networks unless:
