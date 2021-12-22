@@ -12,3 +12,5 @@ In this repo we present our collected works towards the first place of the 2021 
 
 
 With love from **Team Pebbles**
+
+![](poster.jpeg)
